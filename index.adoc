@@ -1,0 +1,398 @@
+////
+NO CAMBIAR!!
+Codificación, idioma, tabla de contenidos, tipo de documento
+////
+:encoding: utf-8
+:lang: es
+:toc: right
+:toc-title: Tabla de contenidos
+:doctype: book
+:linkattrs:
+
+
+:figure-caption: Fig.
+
+////
+Nombre y título del trabajo
+////
+# Contenedorización y despliegue en Kubernetes de una API de productos en Laravel
+Cloud Computing - Máster en Tecnologías y Aplicaciones en Ingeniería Informática
+Manuel Torres y Francisco José García García <mtorres@ual.es> <paco.garcia@ual.es>
+
+image::images/di.png[]
+
+// NO CAMBIAR!! (Entrar en modo no numerado de apartados)
+:numbered!: 
+
+[abstract]
+== Resumen
+
+Laravel es un popular framework de desarrollo web diseñado para facilitar el desarrollo de aplicaciones web en PHP. Laravel incorpora una gran cantidad de herramientas para facilitar tareas comunes como la interacción con bases de datos, routing y el desarrollo de APIs REST, entre otras.
+
+En este tutorial veremos cómo crear una API en Laravel usando un entorno de desarrollo en Docker. El entorno estará formado por el framework Laravel y una base de datos MySQL. A continuación veremos cómo empaquetarla en una imagen Docker, que subiremos a Docker Hub. Por último, la desplegaremos en un cluster de Kubernetes y veremos cómo realizar una actualización.
+
+El tutorial está dividido en tres partes. En la primera parte se desarrolla la API REST de productos en Laravel y se muestra cómo contenedorizarla empaquetándola en una imagen Docker. En la segunda parte se despliega la API en un entorno con Docker Compose. En la tercera parte se despliega la aplicación en un clúster de Kubernetes.
+
+.Objetivos
+
+* Desarrollar una API REST básica de productos en Laravel (operaciones CRUD).
+* Contenedorizar la aplicación empaquetándola en una imagen Docker.
+* Desplegar la API en un entorno con Docker Compose.
+* Desplegar la aplicación en un clúster de Kubernetes.
+
+[TIP]
+====
+Disponible el https://github.com/ualmtorres/laravel-products-api.git[repositorio] usado en este tutorial.
+====
+
+[NOTE]
+====
+Videotutoriales disponibles en
+https://www.youtube.com/playlist?list=PLoS04oY1FHPNdxLM1PM5_FqhwZqyD_AMQ[lista
+de reproducción YouTube]. Consulta preferentemente los de _Nuevas
+explicaciones_.
+====
+
+## Requisitos
+
+Para seguir este tutorial es necesario tener instalado Docker, Docker Compose y Kubernetes (puede ser Minikube). También es necesario tener instalado el cliente de Kubernetes `kubectl`.
+
+// Entrar en modo numerado de apartados
+:numbered:
+
+## Desarrollo de la API en Laravel
+
+En esta sección se desarrollará una API REST básica de productos en Laravel. La API permitirá realizar operaciones CRUD (Create, Read, Update, Delete) sobre una base de datos MySQL. La API se desarrollará en un entorno de desarrollo en Docker. A continuación se explica cómo crear el entorno de desarrollo y cómo desarrollar la API.
+
+### Descrición de la API
+
+La API REST de productos tendrá los siguientes endpoints:
+
+* `GET api/product`: Devuelve todos los productos.
+* `GET api/product/{id}`: Devuelve un producto por su id.
+* `POST api/product`: Crea un nuevo producto.
+* `PUT api/product/{id}`: Actualiza un producto por su id.
+* `DELETE api/product/{id}`: Elimina un producto por su id.
+
+### Entorno de desarrollo en Docker
+
+En esta sección se explica cómo crear un entorno de desarrollo en Docker para desarrollar la API. El entorno estará formado por el framework Laravel y una base de datos MySQL (realmente es una base de datos MariaDB). El entorno se creará usando Docker Compose. El archivo https://github.com/bitnami/bitnami-docker-laravel/blob/master/docker-compose.yml[`docker-compose.yml`] que se usará para crear el entorno es el que proporciona Bitnami en su repositorio de Docker Hub para Laravel (https://hub.docker.com/r/bitnami/laravel/).
+
+Docker compose es una herramienta que permite definir y ejecutar aplicaciones Docker de múltiples contenedores. Docker compose permite definir los servicios que forman la aplicación en un archivo YAML. Docker compose permite desplegar la aplicación con el comando `docker-compose up`.
+
+Lanzaremos el entorno de desarrollo con 
+
+`docker-compose up -d`
+
+Esto crea: 
+
+* Dos servicios: 
+    ** `mariadb`: Servicio MariaDB 
+    ** `myapp`: Servicio Laravel 
+* Un proyecto nuevo denominado `my-project`
+
+Para este tutorial usaremos un
+https://github.com/ualmtorres/laravel-products-api/blob/master/docker-compose.yml[`docker-compose.yml`]
+adaptado para trabajar con variables de entorno en un archivo
+https://gist.github.com/ualmtorres/dc2b289e4cb76f1059fad1be68d6f418[`.env`].
+
+[NOTE]
+====
+*NOTA* Excluiremos el `.env` del control de versiones del
+https://gist.github.com/ualmtorres/9d97317b97afaa188cc52d6d08084ef5[`.gitignore`]
+y usaremos en su puesto un
+https://gist.github.com/ualmtorres/218d175806ac8bdc1b1304cf0e9f4a13[`.env.example`]
+para que proporcione las indicaciones de configuración.
+====
+
+### Ejecución de comandos Laravel
+
+Laravel ofrece una serie de comandos para realizar tareas comunes, como la creación de modelos, controladores, migraciones, etc. Podemos ejecutar los comandos Laravel a través del servicio Laravel del `docker compose` o abriendo una terminal en el contenedor de la aplicación.
+
+#### Con `docker compose`
+
+En nuestro ejemplo el servicio Laravel se denomina `myapp`. 
+
+* Comando `php artisan`: Este comando permite ejecutar comandos Laravel. Su sintaxis es la siguiente:
++
+`docker-compose exec myapp php artisan …`
+* Comando `composer`: Este comando permite ejecutar comandos Composer (gestor de dependencias de PHP). Su sintaxis es la siguiente:
++
+`docker-compose exec myapp composer …`
+
+#### Con Docker Desktop
+
+Docker Desktop es una aplicación de escritorio para Windows y Mac que permite gestionar contenedores Docker. Podemos ejecutar los comandos Laravel directamente desde la terminal del contenedor. Para ello, seleccionamos el contenedor de la aplicación e introducimos directamente los comandos Laravel en la pestaña Terminal (p.e. `php artisan …` o `composer …`)
+
+### Preparación de la base de datos
+
+Podemos preparar la base de datos a través del servicio Laravel del
+`docker compose` o abriendo una terminal en el contenedor de la
+aplicación.
+
+#### Con `docker compose`
+
+* Creación de una migración para una tabla `Productos` con el comando siguiente:
++
+`docker-compose exec myapp php artisan make:migration create_products_table`
+* Configurar la
+https://gist.github.com/ualmtorres/d440a496d3562d0e92a34727cb78c228[migración
+de la tabla de productos] en `<proyecto>/database/migrations`
+* Ejecutar la migración con el comando siguiente:
++
+`docker-compose exec myapp php artisan migrate`
+
+#### Con Docker Desktop
+
+Podemos ejecutar los comandos Laravel directamente desde la terminal del
+contenedor. Para ello, seleccionamos el contenedor de la aplicación e
+introducimos directamente los comandos Laravel en la pestaña Terminal
+
+`php artisan make:migration create_products_table`
+
+### Preparación del modelo y el controlador
+
+Un modelo es una clase que se encarga de gestionar los datos de una tabla de la base de datos. Un controlador es una clase que se encarga de gestionar las peticiones HTTP. En Laravel podemos crear modelos y controladores con el comando `make:model`. 
+
+Podemos preparar el modelo y el controlador a través del servicio Laravel del `docker compose` o abriendo una terminal en el contenedor de la aplicación.
+
+Para este tutorial, el modelo utilizará los campos siguientes para la tabla de productos. Tanto el `id` como los _timestamps_ son campos que se crean automáticamente.
+
+* `id: integer (autoincrement)`: Identificador del producto (clave primaria, autoincremental y creado automáticamente)
+* `barcode: string`: Código de barras del producto
+* `product: string`: Nombre del producto
+* `description: string`: Descripción del producto
+* `stock: integer`: Stock del producto
+* `price: float`: Precio del producto
+* `timestamps`: Fechas de creación y modificación del producto (creados automáticamente)
+
+#### Con `docker compose`
+
+* Crear modelo y controlador
++
+`docker-compose exec myapp php artisan make:model Product -c`
+* Programar el
+https://gist.github.com/ualmtorres/2c92fe219534f50701358b3b38683092[controlador]
+en `<proyecto>/app/Http/Controllers`
+* Programar el
+https://gist.github.com/ualmtorres/0df1575c095330736bb519f2eb874173[modelo]
+en `<proyecto>/app/Models`
+* Añadir las
+https://gist.github.com/ualmtorres/4dabff3a333d267650c69820edc30e1f[rutas]
+en `<proyecto>/routes/api.php`
+
+Tras ejecutar esto, ya estará disponible la API en `localhost:8000/api/product`.
+
+#### Con Docker Desktop
+
+Podemos ejecutar los comandos Laravel directamente desde la terminal del
+contenedor. Para ello, seleccionamos el contenedor de la aplicación e
+introducimos directamente los comandos Laravel en la pestaña Terminal
+
+`php artisan make:model Product -c`
+
+### Carga de datos de ejemplo en la base de datos
+
+Un aspecto importante en el desarrollo de una API es la carga de datos de ejemplo en la base de datos. Esto nos permitirá probar la API con datos reales. Una forma de cargar datos de ejemplo en la base de datos es a través de un archivo JSON. En este tutorial nos apoyaremos en el servicio que ofrece https://www.mockaroo.com/[Mockaroo] para generar un archivo JSON con datos de ejemplo.
+
+Dado que la API ya está lista para ser usada. La API ofrece un endpoint para la carga de datos de ejemplo en la base de datos. Veamos cómo podemos cargar datos de ejemplo en la base de datos usando el endpoint `POST api/product`.
+
+Previamente, generaremos un archivo JSON con los datos a insertar. Para
+este caso, como hemos comentado usaremos https://www.mockaroo.com/[Mockaroo]. Lo usaremos para generar
+un archivo JSON con 10 registros de ejemplo. Realmente no es un archivo
+JSON válido con un array de objetos, sino un conjunto de objetos JSON
+separados por saltos de línea
+https://gist.github.com/ualmtorres/85602e0da53ce6649342c14e709a5772[MOCK_DATA.json].
+
+Para cargar los datos de ejemplo en la base de datos, creamos un script
+Bash
+https://gist.github.com/ualmtorres/704e2532d19b6fe0d8fef0ded0884def[`populate.sh`]
+en el que pegaremos los datos generados, *encerrando cada documento JSON
+de producto entre comillas simples*. Con esto crearemos un array con los
+productos que podremos pasar como parámetro al comando `curl` para
+insertar los datos en la base de datos.
+
+Ejecutamos el script con `bash populate.sh` y los datos se insertarán en
+la base de datos.
+
+### Creación de la imagen
+
+Una vez que la API está lista para ser usada, crearemos una imagen Docker con la API. Para ello, crearemos un archivo Dockerfile en el directorio raíz del proyecto. El archivo Dockerfile contendrá las instrucciones para crear la imagen. Para la creación de este archivo nos basaremos en la configuración que hemos usado para el entorno de desarrollo en Docker Compose. A partir de este
+https://github.com/ualmtorres/laravel-products-api/blob/master/Dockerfile[Dockerfile]
+generaremos la imagen con este comando
+
+....
+docker build -t ualmtorres/laravel-products-api:v0 .
+....
+
+Este comando creará en el registro de imágenes local una imagen con el nombre `ualmtorres/laravel-products-api` y la etiqueta `v0`. Podemos comprobar que la imagen se ha creado correctamente con el comando 
+
+`docker images`
+
+A continuación, subiremos la imagen a Docker Hub con este comando
+
+....
+docker push ualmtorres/laravel-products-api:v0
+....
+
+Esto subirá la imagen al registro de imágenes de Docker Hub. Podemos comprobar que la imagen se ha subido correctamente con el comando 
+
+`docker search ualmtorres/laravel-products-api`
+
+## Despliegue en una plataforma con Docker Compose
+
+Una vez que tenemos la imagen de la API en Docker Hub, podemos desplegarla en una plataforma con Docker Compose. No siempre es necesario desplegar la API en un clúster de Kubernetes. Y es que ni todas las aplicaciones requieren un despliegue en un clúster de Kubernetes ni todas las organizaciones disponen un clúster de Kubernetes.
+
+Docker Compose no sólo se utiliza para entornos de desarrollo, sino que también se puede utilizar para entornos de producción. Con Docker Compose podemos desplegar aplicaciones en un entorno de producción. Para ello, crearemos un archivo Docker compose que instancie la imagen de la API.
+
+Consideremos el siguiente escenario:
+
+* Tenemos una máquina virtual Ubuntu Linux con Docker instalado.
+* Tenemos la imagen Docker de la API en Docker Hub. Esto lo hemos realizado en el apartado anterior.
+
+En este tutorial veremos cómo desplegar la API en una máquina virtual con Docker instalado. Para ello, crearemos un archivo Docker compose que instancie la imagen de la API. Optaremos por uno de los siguientes casos:
+
+### Despliegue para testing
+
+* En este caso la base de datos correrá en local en un contenedor junto
+al contenedor de la API.
+* En la máquina virtual tenemos un archivo `.env` con las variables de
+entorno necesarias. Podemos usar el
+https://gist.github.com/ualmtorres/dc2b289e4cb76f1059fad1be68d6f418[`.env`]
+que teníamos para desarrollo.
+* El archivo Docker compose
+https://github.com/ualmtorres/laravel-products-api/blob/master/docker-compose-testing.yml[`docker-compose-testing.yml`]
+que usemos tendrá que instanciar la imagen de la API creada en el
+apartado anterior.
+
+Descargamos el archivo `docker-compose-testing.yml` en la máquina
+virtual y lo desplegamos con el comando siguiente
+
+....
+docker-compose -f docker-compose-testing.yml up -d
+....
+
+### Despliegue para producción
+
+* En este caso la base de datos correrá en remoto y ya estará
+inicializada con la base de datos de inventario.
+* En la máquina virtual tenemos un archivo `.env` con las variables de
+entorno necesarias. Podemos usar el
+https://gist.github.com/ualmtorres/dc2b289e4cb76f1059fad1be68d6f418[`.env`]
+que teníamos para desarrollo y adaptarlo modificando los valores
+necesarios (p.e. `DB_HOST`).
+* El archivo Docker compose
+https://github.com/ualmtorres/laravel-products-api/blob/master/docker-compose-produccion.yml[`docker-compose-produccion.yml`]
+que usemos tendrá que instanciar la imagen de la API creada en el
+apartado anterior.
+
+Descargamos el archivo `docker-compose-produccion.yml` en la máquina
+virtual y lo desplegamos con el comando siguiente
+
+....
+docker-compose -f docker-compose-produccion.yml up -d
+....
+
+## Despliegue en Kubernetes
+
+Kubernetes es una plataforma de orquestación de contenedores. Kubernetes permite desplegar aplicaciones en un clúster de máquinas. Entre las ventajas que ofrece Kubernetes se encuentran la escalabilidad, la tolerancia a fallos y la facilidad de despliegue. Los componentes principales de Kubernetes son los siguientes:
+
+* `Pod`: Un pod es la unidad mínima de despliegue en Kubernetes. Un pod es un conjunto de uno o más contenedores que comparten almacenamiento y red. Un pod es la unidad mínima de escalado en Kubernetes.
+* `Deployment`: Un deployment es un objeto Kubernetes que permite desplegar pods. Un deployment permite definir el número de réplicas de un pod y permite realizar actualizaciones de la aplicación.
+* `Service`: Un service es un objeto Kubernetes que permite exponer un pod a través de una IP y un puerto. Un service permite definir el tipo de acceso al pod (p.e. acceso externo o acceso interno).
+
+Además de los tres componentes anteriores, este tutorial usaremos dos objetos más:
+
+* `ConfigMap`: Un configmap es un objeto Kubernetes que permite definir variables de entorno no sensibles.
+* `Secret`: Un secret es un objeto Kubernetes que permite definir variables de entorno sensibles.
+
+Partimos de un cluster Kubernetes creado y de una instancia MySQL
+corriendo con la base de datos `inventario` ya creada y con la tabla de
+productos creada.
+
+### Despliegue de la API en Kubernetes
+
+En este apartado veremos cómo desplegar la API en un clúster de Kubernetes. Podemos seguir dos enfoques para desplegar la API en Kubernetes:
+
+* Crear un archivo de despliegue independiente para cada objeto Kubernetes (p.e. un archivo para el deployment, otro para el service, etc.).
+* Crear un archivo de despliegue que contenga todos los objetos Kubernetes.
+
+Con fines didácticos y para favorecer la comprensión, en este tutorial optaremos por el primer enfoque, creando un archivo de despliegue independiente para cada objeto Kubernetes. Usaremos 4 objetos Kubernetes para el despliegue:
+
+* Objeto
+https://github.com/ualmtorres/laravel-products-api/blob/main/k8s/laravel-products-api-configmap.yml[`ConfigMap`]:
+Contiene la variable de entorno `DB_PORT`, que es un valor no sensible.
+* Objeto
+https://github.com/ualmtorres/laravel-products-api/blob/main/k8s/laravel-products-api-secret.yml[`Secret`]:
+Contiene las variables de entorno
+`DB_HOST, DB_USERNAME, DB_PASSWORD, DB_DATABASE`.
++
+[NOTE]
+====
+En un objeto _secret_ los valores van codificados en base64. Para
+codificarlos lo haremos con este comando
+
+`echo -n '<valor-a-codificar>' | base64`
+
+Por ejemplo, `echo -n '123' | base64` produce el valor `MTIz`
+====
++
+* Objeto
+https://github.com/ualmtorres/laravel-products-api/blob/main/k8s/laravel-products-api-deployment.yml[`Deployment`]:
+Despliega la imagen de la API en dos pods.
+* Objeto
+https://github.com/ualmtorres/laravel-products-api/blob/main/k8s/laravel-products-api-service.yml[`Service`]:
+Expone el servicio de la API en el puerto 8000 de una IP generada para
+la ocasión.
+
+Desplegaremos estos objetos de forma independiente con `kubectl` siguiendo esta sintaxis 
+
+`kubectl apply -f <filename>`
+
+[NOTE]
+====
+Si queremos desplegar todos los objetos a la vez, podemos usar el archivo
+https://github.com/ualmtorres/laravel-products-api/blob/main/k8s/laravel-products-api.yml[`laravel-products-api.yml`], que 
+contiene los 4 objetos en un solo archivo. Para desplegarlo usaremos el comando siguiente
+
+`kubectl apply -f laravel-products-api.yml`
+====
+
+### Actualización del despliegue de Kubernetes
+
+Una vez desplegada la API en Kubernetes, es posible que tengamos que actualizar el despliegue. Actualizaremos el despliegue por dos motivos: actualización del código de la API o cambio de credenciales en la base de datos.
+
+#### Actualización del código de la API
+
+Para actualizar el código de la API, seguiremos los siguientes pasos:
+
+. Crear una nueva imagen local de la API con una etiqueta nueva (p.e.
+`ualmtorres/laravel-products-api:v0.1`) mediante
++
+`docker build -t ualmtorres/laravel-products-api:v0.1 .`
+. Subir la imagen al registro de imágenes con `docker push` mediante
++
+`docker push ualmtorres/laravel-products-api:v0.1`
+. Modificar el archivo de _deployment_ actualizando la versión de la
+imagen de la API
+. Redesplegar el archivo de _deployment_
+
+#### Cambio de credenciales en la base de datos
+
+Para cambiar las credenciales en la base de datos, seguiremos los siguientes pasos:
+
+. Modificar el archivo _secret_ con las nuevas credenciales
+. Redesplegar el archivo _secret_
+. Reiniciar el despliegue con el comando siguiente para que se
+actualicen los pods con las nuevas credenciales
++
+`kubectl rollout restart deployment laravel-products-api`
+
+:numbered!: 
+
+## Enlaces de interés
+
+* https://raw.githubusercontent.com/bitnami/containers/main/bitnami/laravel/docker-compose.yml[docker-compose.yml
+para MariaDB y Laravel de Bitnami]
+* https://www.youtube.com/playlist?list=PLoS04oY1FHPNdxLM1PM5_FqhwZqyD_AMQ[Lista
+de reproducción YouTube].
